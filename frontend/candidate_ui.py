@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from backend.data_manager import load_positions
 from backend.analysis_engine import parse_resume, analyze_resume
-from backend.email_service import send_email
 from backend.security import hash_data, generate_auth_token
 from utils.validators import validate_candidate_info
 from utils.session_manager import initialize_session  # Import from utils
@@ -15,11 +14,6 @@ from config.settings import RESUMES_DIR
 from backend.analysis_engine import analyze_resume
 from config import load_positions
 from utils.report_generator import create_resume_scorecard
-from config.settings import ADMIN_EMAIL
-
-
-
-
 
 # Load positions configuration
 POSITION_CONFIG = load_positions()
@@ -102,13 +96,6 @@ def render_registration(position_config):
                     state.questions = random.sample(combined_questions, k=sample_size)
                     state.stage = "interview"
                     
-                    html_content = create_resume_scorecard(state.user_info, state.position, position_config)  # Pass position_config here
-                    send_email(
-                        state.user_info["email"],
-                        "Interview Started",
-                        f"Hi {state.user_info['name']},\n\nYour {state.position} interview has begun!",
-                        html_content
-                    )
                     # Set the session state to navigate to the interview page
                     st.session_state["current_page"] = "interview"
                     st.rerun()
@@ -117,6 +104,7 @@ def render_registration(position_config):
         st.error("Please fix the following issues:")
         for error in state.validation_errors:
             st.write(f"- {error}")
+
 def render_interview():
     """Enhanced interview interface with time management"""
     state = initialize_session()
@@ -180,12 +168,6 @@ def render_interview():
             existing_df = pd.read_excel("results.xlsx")
             df = pd.concat([existing_df, df], ignore_index=True)
         df.to_excel("results.xlsx", index=False)
-        
-        # send_email(
-        #     ADMIN_EMAIL,
-        #     "New Interview Completed",
-        #     f"Interview results for {state.user_info['name']} ({state.position})"
-        # )
         
         col1, col2 = st.columns(2)
         col1.download_button(
