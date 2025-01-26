@@ -177,4 +177,4 @@ def render_interview():
         )
         if col2.button("Start New Interview"):
             st.session_state.clear()
-            st.experimental_rerun()
+            st.rerun()
