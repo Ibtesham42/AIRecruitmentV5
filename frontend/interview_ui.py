@@ -80,22 +80,36 @@ def parse_resume(file):
         st.error(f"Error: {str(e)}")
         return ""
 
-def analyze_resume(text, position):
+def analyze_resume(text: str, position: str, position_config: Dict) -> Dict:
+    """Enhanced resume analysis with security checks"""
     sanitized_text = re.sub(r'[^\x00-\x7F]+', ' ', text)
-    required_skills = POSITION_CONFIG[position]["required_skills"]
-    preferred_skills = POSITION_CONFIG[position]["preferred_skills"]
-    found_skills = re.findall(r'\b(' + '|'.join(re.escape(skill) for skill in required_skills+preferred_skills) + r')\b', sanitized_text, re.IGNORECASE)
+    
+    required_skills = position_config[position]["required_skills"]
+    preferred_skills = position_config[position]["preferred_skills"]
+    
+    valid_skills = required_skills + preferred_skills
+    found_skills = re.findall(
+        r'\b(' + '|'.join(re.escape(skill) for skill in valid_skills) + r')\b',
+        sanitized_text,
+        re.IGNORECASE
+    )
     normalized_skills = [skill.strip().title() for skill in found_skills]
-    
+
     experience = 0
-    exp_match = re.search(r'(\d+)\s*\+?\s*years?', sanitized_text, re.IGNORECASE)
-    if exp_match: experience = int(exp_match.group(1))
-    
+    try:
+        exp_match = re.search(r'(\d+)\s*\+?\s*years?', sanitized_text, re.IGNORECASE)
+        if exp_match:
+            experience = int(exp_match.group(1))
+    except ValueError:
+        experience = 0
+
     required_matches = [skill for skill in normalized_skills if skill in required_skills]
     preferred_matches = [skill for skill in normalized_skills if skill in preferred_skills]
-    base_score = (len(required_matches)/len(required_skills))*100 if required_skills else 0
-    total_score = max(0, min(base_score + (len(preferred_matches)/len(preferred_skills))*20 if preferred_skills else 0, 100))
     
+    base_score = (len(required_matches) / len(required_skills)) * 100 if required_skills else 0
+    bonus_score = (len(preferred_matches) / len(preferred_skills)) * 20 if preferred_skills else 0
+    total_score = max(0, min(base_score + bonus_score, 100))
+
     return {
         "skills": list(set(normalized_skills))[:8],
         "experience": experience,

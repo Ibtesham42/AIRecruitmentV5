@@ -28,12 +28,12 @@ def parse_resume(file) -> str:
         st.error(f"Resume parsing error: {str(e)}")
         return ""
 
-def analyze_resume(text: str, position: str) -> Dict:
+def analyze_resume(text: str, position: str, position_config: Dict) -> Dict:
     """Enhanced resume analysis with security checks"""
     sanitized_text = re.sub(r'[^\x00-\x7F]+', ' ', text)
     
-    required_skills = POSITION_CONFIG[position]["required_skills"]
-    preferred_skills = POSITION_CONFIG[position]["preferred_skills"]
+    required_skills = position_config[position]["required_skills"]
+    preferred_skills = position_config[position]["preferred_skills"]
     
     valid_skills = required_skills + preferred_skills
     found_skills = re.findall(

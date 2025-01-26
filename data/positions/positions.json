@@ -129,8 +129,58 @@
       "biryani",
       "chawal"
     ],
-    "technical": [],
-    "behavioral": [],
+    "technical": [
+      [
+        "Explain bias-variance tradeoff",
+        [
+          "bias",
+          "variance",
+          "overfitting"
+        ]
+      ],
+      [
+        "Handle missing data techniques",
+        [
+          "imputation",
+          "deletion",
+          "modeling"
+        ]
+      ],
+      [
+        "Cross-validation methods",
+        [
+          "k-fold",
+          "stratified",
+          "time-series"
+        ]
+      ]
+    ],
+    "behavioral": [
+      [
+        "Explain bias-variance tradeoff",
+        [
+          "bias",
+          "variance",
+          "overfitting"
+        ]
+      ],
+      [
+        "Handle missing data techniques",
+        [
+          "imputation",
+          "deletion",
+          "modeling"
+        ]
+      ],
+      [
+        "Cross-validation methods",
+        [
+          "k-fold",
+          "stratified",
+          "time-series"
+        ]
+      ]
+    ],
     "experience_threshold": 0
   }
 }

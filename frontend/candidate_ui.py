@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 from backend.data_manager import load_positions
 from backend.analysis_engine import parse_resume, analyze_resume
 from backend.email_service import send_email
@@ -11,25 +12,33 @@ import random
 from datetime import datetime
 from backend.data_manager import load_positions
 from config.settings import RESUMES_DIR
+from backend.analysis_engine import analyze_resume
+from config import load_positions
+from utils.report_generator import create_resume_scorecard
+from config.settings import ADMIN_EMAIL
+
+
+
 
 
 # Load positions configuration
 POSITION_CONFIG = load_positions()
 
-def render_registration():
+def render_registration(position_config):
     """Enhanced registration form with validation"""
     state = initialize_session()
     
     with st.form("reg_form", clear_on_submit=False):
         st.header("📝 Candidate Registration")
         
+        # Form fields...
         col1, col2 = st.columns(2)
         state.user_info["name"] = col1.text_input("Full Name*", value=state.user_info["name"])
         state.user_info["email"] = col2.text_input("Email*", value=state.user_info["email"])
         state.user_info["phone"] = st.text_input("Phone Number*", value=state.user_info["phone"])
         
         col1, col2 = st.columns(2)
-        state.position = col1.selectbox("Position*", list(POSITION_CONFIG.keys()))
+        state.position = col1.selectbox("Position*", list(position_config.keys()))
         state.user_info["experience"] = col2.number_input(
             "Experience (Years)*", 
             min_value=0,
@@ -38,13 +47,14 @@ def render_registration():
         
         resume = st.file_uploader("Upload Resume (PDF/DOCX)", type=["pdf", "docx"])
         if resume:
-            state.user_info["resume_path"] = f"{RESUMES_DIR}/{state.user_info['name']}_{uuid.uuid4().hex[:6]}.{resume.type.split('/')[-1]}"
+            state.user_info["resume_path"] = f"data/resumes/{state.user_info['name']}_{uuid.uuid4().hex[:6]}.{resume.type.split('/')[-1]}"
             with open(state.user_info["resume_path"], "wb") as f:
                 f.write(resume.getbuffer())
             
             resume_text = parse_resume(resume)
             if resume_text:
-                resume_data = analyze_resume(resume_text, state.position)
+                # Call analyze_resume with position_config
+                resume_data = analyze_resume(resume_text, state.position, position_config)  # Pass position_config here
                 state.user_info.update(resume_data)
                 
                 exp_diff = abs(state.user_info["experience"] - resume_data["experience"])
@@ -54,8 +64,8 @@ def render_registration():
                 
                 cols = st.columns(3)
                 cols[0].metric("Compatibility", f"{resume_data['resume_score']}%")
-                cols[1].metric("Required Skills", f"{len(resume_data['required_matches'])}/{len(POSITION_CONFIG[state.position]['required_skills'])}")
-                cols[2].metric("Preferred Skills", len(resume_data['preferred_matches']))
+                cols[1].metric("Required Skills", f"{len(resume_data['required_matches'])}/{len(position_config[state.position]['required_skills'])}")
+                cols[2].metric("Preferred Skills", len(resume_data["preferred_matches"]))
                 
                 with st.expander("Detailed Analysis"):
                     st.write("**Required Skills Found:**")
@@ -69,19 +79,20 @@ def render_registration():
                 
                 st.progress(min(resume_data["resume_score"] / 100, 1.0))
 
+        # Add a submit button
         submitted = st.form_submit_button("Start Interview")
         if submitted:
             state.validation_errors = validate_candidate_info(state.user_info)
             
             if not state.validation_errors:
-                if state.user_info["experience"] < POSITION_CONFIG[state.position]["experience_threshold"]:
+                if state.user_info["experience"] < position_config[state.position]["experience_threshold"]:
                     state.validation_errors.append(
-                        f"Minimum experience required: {POSITION_CONFIG[state.position]['experience_threshold']} years"
+                        f"Minimum experience required: {position_config[state.position]['experience_threshold']} years"
                     )
             
             if not state.validation_errors:
-                tech_q = POSITION_CONFIG[state.position]["technical"]
-                behave_q = POSITION_CONFIG[state.position]["behavioral"]
+                tech_q = position_config[state.position]["technical"]
+                behave_q = position_config[state.position]["behavioral"]
                 combined_questions = tech_q + behave_q
                 sample_size = min(5, len(combined_questions))
                 
@@ -91,20 +102,21 @@ def render_registration():
                     state.questions = random.sample(combined_questions, k=sample_size)
                     state.stage = "interview"
                     
-                    html_content = create_resume_scorecard(state.user_info, state.position)
+                    html_content = create_resume_scorecard(state.user_info, state.position, position_config)  # Pass position_config here
                     send_email(
                         state.user_info["email"],
                         "Interview Started",
                         f"Hi {state.user_info['name']},\n\nYour {state.position} interview has begun!",
                         html_content
                     )
+                    # Set the session state to navigate to the interview page
+                    st.session_state["current_page"] = "interview"
                     st.rerun()
 
     if state.validation_errors:
         st.error("Please fix the following issues:")
         for error in state.validation_errors:
             st.write(f"- {error}")
-
 def render_interview():
     """Enhanced interview interface with time management"""
     state = initialize_session()
@@ -169,11 +181,11 @@ def render_interview():
             df = pd.concat([existing_df, df], ignore_index=True)
         df.to_excel("results.xlsx", index=False)
         
-        send_email(
-            ADMIN_EMAIL,
-            "New Interview Completed",
-            f"Interview results for {state.user_info['name']} ({state.position})"
-        )
+        # send_email(
+        #     ADMIN_EMAIL,
+        #     "New Interview Completed",
+        #     f"Interview results for {state.user_info['name']} ({state.position})"
+        # )
         
         col1, col2 = st.columns(2)
         col1.download_button(
